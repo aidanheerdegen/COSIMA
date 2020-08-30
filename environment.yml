@@ -6,6 +6,7 @@ dependencies:
   - cmocean
   - dask
   - dask-labextension
+  - jupyterhub
   - jupyterlab
   - matplotlib
   - netCDF4
