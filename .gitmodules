@@ -1,0 +1,9 @@
+[submodule "cosima-recipes"]
+	path = cosima-recipes
+	url = git@github.com:COSIMA/cosima-recipes.git
+[submodule "cosima-cookbook"]
+	path = cosima-cookbook
+	url = git@github.com:COSIMA/cosima-cookbook.git
+[submodule "nci_scripts"]
+	path = nci_scripts
+	url = https://github.com/coecms/nci_scripts.git
