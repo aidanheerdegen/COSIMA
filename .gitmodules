@@ -1,9 +1,0 @@
-[submodule "cosima-cookbook"]
-	path = cosima-cookbook
-	url = ./cosima-cookbook
-[submodule "cosima-recipes"]
-	path = cosima-recipes
-	url = ./cosima-recipes/
-[submodule "nci_scripts"]
-	path = nci_scripts
-	url = ./nci_scripts/
