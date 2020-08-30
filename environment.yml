@@ -2,4 +2,12 @@ name: cosima
 channels:
   - conda-forge
 dependencies:
+  - cartopy
+  - cmocean
+  - dask
+  - dask-labextension
   - jupyterlab
+  - matplotlib
+  - netCDF4
+  - pandas
+  - xarray
