@@ -498,7 +498,7 @@ c.PBSSpawner.batch_script =  """#!/bin/sh
 #PBS -P v45
 #PBS -l ncpus={{nprocs}}
 #PBS -l mem={{memory}}
-#PBS -l storage=gdata/v45+gdata/hh5
+#PBS -l storage=gdata/v45+scratch/v45+gdata/ik11+gdata/hh5
 #PBS -N jupyterhub-singleuser
 #PBS -o {{homedir}}/.jupyterhub.pbs.out
 #PBS -e {{homedir}}/.jupyterhub.pbs.err
