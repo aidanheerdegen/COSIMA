@@ -19,6 +19,23 @@ JupyterHub
 
 ## Set up
 
-- user has a NCI account on gadi.
+- user has a NCI account on gadi with a SSH keypair set up (public key copied into ~/.ssh/authorized_keys on gadi)
+- configure ~/.ssh/config on your local machine so that `ssh gadi` logs you onto gadi. For example, 
+```
+Host gadi
+  Hostname gadi.nci.org.au
+  IdentityFile ~/.ssh/id_rsa
+  User jm0634
+
+Host gadi-login-*
+  Hostname %h.nci.org.au
+  IdentityFile ~/.ssh/id_rsa
+  User jm0634
+  ProxyJump gadi
+```
+- Using `ssh gadi` will randomly choose a login node.  Using `ssh gadi-login-01` (or similar) will use a specific login node
+
+
+
 
 
