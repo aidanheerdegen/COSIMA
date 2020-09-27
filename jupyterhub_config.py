@@ -260,7 +260,11 @@ c.JupyterHub.authenticator_class = 'jupyterhub.auth.DummyAuthenticator'
 #  requirements.
 #  
 #  .. versionadded:: 0.8
-c.JupyterHub.hub_connect_ip = '10.6.152.2'
+
+# should be the ib0 interface address
+import socket
+ip_addr = socket.gethostbyname(socket.gethostname())
+c.JupyterHub.hub_connect_ip = ip_addr
 
 ## DEPRECATED
 #  
@@ -932,7 +936,9 @@ c.Spawner.default_url = '/lab'
 #  
 #  Defaults to an empty set, in which case no user has admin access.
 #c.Authenticator.admin_users = set()
-c.Authenticator.admin_users = {'jm0634'}
+import os
+user = os.environ['USER']
+c.Authenticator.admin_users = {user}
 
 ## The max age (in seconds) of authentication info before forcing a refresh of
 #  user auth info.
