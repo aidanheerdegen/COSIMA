@@ -1,0 +1,198 @@
+#!/bin/bash
+
+# James Munroe 20200927
+
+# dervied from Scott Wales's gadi_jupyter script
+
+print_help() {
+cat <<EOF
+Run a JupyterHub inteface on a Gadi login nodes, presenting the interface in a
+browser on the local machine
+General Options:
+    -h:         Print help
+    -l:         NCI username
+    -L:         NCI login node (default 'gadi.nci.org.au')
+    -e:         Conda environment
+    -d:         Debug mode
+EOF
+}
+
+set -eu
+
+# Internal defaults
+USER=''
+PROJECT=''
+LOGINNODE='gadi.nci.org.au'
+#CONDA_ENV=analysis3-20.07
+CONDA_ENV=cosima
+DEBUG=""
+
+# Handle arguments
+optspec="hl:L:q:n:m:t:J:P:e:d"
+while getopts "$optspec" optchar; do
+    case "${optchar}" in
+        h)
+            print_help
+            exit 2
+            ;;
+        l)
+            USER="${OPTARG}"
+            ;;
+        L)
+            LOGINNODE="${OPTARG}"
+            ;;
+        e)
+            CONDA_ENV="${OPTARG}"
+            ;;
+        d)
+            DEBUG=true
+            ;;
+        *)
+            print_help
+            exit 2
+            ;;
+    esac
+done
+
+# This gets evaluated on Gadi in the SSH script
+WORKDIR=/scratch/${PROJECT:-\$PROJECT}/\$USER/tmp/run_jupyterhub
+
+# Check for agent
+set +e
+ssh-add -l &> /dev/null
+AGENT=$?
+set -e
+if [ $AGENT -eq 2 ]; then
+    # Restart with an agent
+    ssh-agent "$0" "$@"
+    exit
+fi
+if [ $AGENT -eq 1 ]; then
+    # No keys saved
+    ssh-add
+fi
+
+SSH='ssh -oBatchMode=yes'
+if [ -n "$USER" ]; then
+    SSH="${SSH} -l ${USER}"
+fi
+
+
+echo "Starting JupyterHub on ${LOGINNODE}..."
+if [ -n "$DEBUG" ]; then
+    echo "DEBUG: Connecting using: '$SSH $LOGINNODE'"
+fi
+
+# Check connection
+#$SSH "$LOGINNODE" true
+
+# Kill the job if this top-level script is cancelled while the job is still in the queue
+#trap "{ echo 'Stopping queued job... (Ctrl-C will leave job in the queue)' ; $SSH \"$LOGINNODE\" > /dev/null <<< 'qdel \$(cat $WORKDIR/jobid)' ; }" EXIT
+
+message=$(
+$SSH -q "$LOGINNODE" <<EOF | tail -n 1
+
+WORKDIR="$WORKDIR"
+mkdir -p "\$WORKDIR"
+
+# Check if a v45 member
+if [ ! -d /g/data/v45 ]; then
+    echo "ERROR: \$USER is not a member of v45." >&2
+    echo "x x x x ERROR"
+    exit
+fi
+
+# Check if already running on login host 
+echo "Checking for pid"
+if [ -f "\$WORKDIR/jupyterhub.pid" ] && [ "\$(ps -h \$(cat "\$WORKDIR/jupyterhub.pid") | wc -l)" -eq 1 ] ; then
+    while [ ! -f "\$WORKDIR/message" ]; do
+        sleep 5
+    done
+    cat "\$WORKDIR/message" | sed 's/$/ RECONNECT/'
+    exit
+fi
+
+rm -f "\$WORKDIR/message"
+
+set +u
+module purge
+eval "\$(/g/data/v45/conda/bin/conda shell.bash hook)"
+conda activate "${CONDA_ENV}"
+set -u
+
+# Find IP for ib0
+IP=\$(ip -4 -br addr show dev ib0 | awk '{print \$NF}' | cut -d / -f1)
+ 
+# Find a remote port https://unix.stackexchange.com/a/132524
+PORT=\$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
+
+
+cd $WORKDIR
+
+nohup jupyterhub -f ~/COSIMA/jupyterhub_config.py --JupyterHub.hub_connect_ip=\$IP --port=\$PORT &> my_jupyterhub.log &
+PID=\$!
+echo "\$PID" > "\$WORKDIR/jupyterhub.pid"
+
+# Write message file with info for the local connection
+echo "\$HOSTNAME \$PORT \$PID" > "\$WORKDIR/message"
+cat "\$WORKDIR/message" | sed 's/%/ NEW/'
+EOF
+)
+
+if [ -n "$DEBUG" ]; then
+    echo "DEBUG: Remote Message: '$message'"
+fi
+
+# Grab info from the PBS job
+read jobhost remote_port pid type <<< "$message"
+
+if [ "$type" = "ERROR" ]; then
+    echo
+    echo "Stopping due to error"
+    exit
+fi
+if [ "$type" = "RECONNECT" ]; then
+    echo
+    echo "Existing jupyterlab found, reconnecting to that instead"
+fi
+
+# Find a local port
+for local_port in {8888..9000}; do
+    if ! echo > /dev/tcp/127.0.0.1/${local_port} ; then
+        break
+    fi 2> /dev/null
+done
+
+echo
+echo "JupyterHub running as PID ${pid} on ${jobhost}"
+echo
+echo "Starting tunnel..."
+if [ -n "$DEBUG" ]; then
+    echo "DEBUG:" $SSH -N -L "${local_port}:$jobhost:${remote_port}" "$LOGINNODE"
+fi
+$SSH -N -L "${local_port}:$jobhost:${remote_port}" "$LOGINNODE" &
+tunnelid=$!
+
+# Shut everything down on exit
+#trap "{ echo 'Closing connections... (Ctrl-C will leave job in the queue)' ; kill $tunnelid ; $SSH "$LOGINNODE" qdel $jobid ; }" EXIT
+
+# Wait for startup then open a browser
+sleep 5
+URL="http://localhost:${local_port}"
+
+set +e
+if which xdg-open > /dev/null; then
+    xdg-open "$URL"
+elif which open > /dev/null; then
+    open "$URL"
+elif which explorer > /dev/null; then
+    explorer "$URL"
+else
+    echo
+    echo "----"
+    echo "JupyterHub available at $URL"
+fi
+set -e
+
+# Keep open as long as the tunnel exists
+wait "$tunnelid"
