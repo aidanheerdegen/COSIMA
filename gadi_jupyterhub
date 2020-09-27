@@ -120,16 +120,13 @@ eval "\$(/g/data/v45/conda/bin/conda shell.bash hook)"
 conda activate "${CONDA_ENV}"
 set -u
 
-# Find IP for ib0
-IP=\$(ip -4 -br addr show dev ib0 | awk '{print \$NF}' | cut -d / -f1)
- 
 # Find a remote port https://unix.stackexchange.com/a/132524
 PORT=\$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
 
 
 cd $WORKDIR
 
-nohup jupyterhub -f ~/COSIMA/jupyterhub_config.py --JupyterHub.hub_connect_ip=\$IP --port=\$PORT &> my_jupyterhub.log &
+nohup jupyterhub -f /g/data/v45/jupyterhub/jupyterhub_config.py --port=\$PORT &> jupyterhub.log &
 PID=\$!
 echo "\$PID" > "\$WORKDIR/jupyterhub.pid"
 
