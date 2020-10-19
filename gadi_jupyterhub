@@ -78,13 +78,14 @@ if [ -n "$USER" ]; then
 fi
 
 
-echo "Starting JupyterHub on ${LOGINNODE}..."
 if [ -n "$DEBUG" ]; then
     echo "DEBUG: Connecting using: '$SSH $LOGINNODE'"
 fi
 
+echo "Connecting to JupyterHub on ${LOGINNODE}..."
+
 # Check connection
-#$SSH "$LOGINNODE" true
+$SSH "$LOGINNODE" true
 
 # Kill the job if this top-level script is cancelled while the job is still in the queue
 #trap "{ echo 'Stopping queued job... (Ctrl-C will leave job in the queue)' ; $SSH \"$LOGINNODE\" > /dev/null <<< 'qdel \$(cat $WORKDIR/jobid)' ; }" EXIT
@@ -104,12 +105,17 @@ fi
 
 # Check if already running on login host 
 echo "Checking for pid"
-if [ -f "\$WORKDIR/jupyterhub.pid" ] && [ "\$(ps -h \$(cat "\$WORKDIR/jupyterhub.pid") | wc -l)" -eq 1 ] ; then
-    while [ ! -f "\$WORKDIR/message" ]; do
-        sleep 5
-    done
-    cat "\$WORKDIR/message" | sed 's/$/ RECONNECT/'
-    exit
+if [ -f "\$WORKDIR/message" ]; then
+    
+    read jobhost remote_port pid < "\$WORKDIR/message"
+
+    if [ "\$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR \$jobhost ps -h \$pid | wc -l)" -eq 1 ] ; then
+        while [ ! -f "\$WORKDIR/message" ]; do
+            sleep 5
+        done
+        cat "\$WORKDIR/message" | sed 's/$/ RECONNECT/'
+        exit
+    fi
 fi
 
 rm -f "\$WORKDIR/message"
@@ -171,7 +177,7 @@ $SSH -N -L "${local_port}:$jobhost:${remote_port}" "$LOGINNODE" &
 tunnelid=$!
 
 # Shut everything down on exit
-#trap "{ echo 'Closing connections... (Ctrl-C will leave job in the queue)' ; kill $tunnelid ; $SSH "$LOGINNODE" qdel $jobid ; }" EXIT
+trap "{ echo 'Closing tunnel... ' ; kill $tunnelid ; }" EXIT
 
 # Wait for startup then open a browser
 sleep 5
