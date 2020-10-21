@@ -22,9 +22,9 @@ set -eu
 # Internal defaults
 USER=''
 PROJECT=''
-LOGINNODE='gadi.nci.org.au'
+LOGINNODE='gadi-login-02'
 #CONDA_ENV=analysis3-20.07
-CONDA_ENV=cosima
+CONDA_ENV=jupyter-lab
 DEBUG=""
 
 # Handle arguments
@@ -79,6 +79,7 @@ fi
 
 
 if [ -n "$DEBUG" ]; then
+    echo "DEBUG: Remote WORKDIR: $WORKDIR"
     echo "DEBUG: Connecting using: '$SSH $LOGINNODE'"
 fi
 
@@ -132,7 +133,10 @@ PORT=\$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.ge
 
 cd $WORKDIR
 
-nohup jupyterhub -f /g/data/v45/jupyterhub/jupyterhub_config.py --port=\$PORT &> jupyterhub.log &
+# nohup jupyterhub -f /g/data/v45/jupyterhub/jupyterhub_config.py --port=\$PORT &> jupyterhub.log &
+echo nohup jupyterhub -f /home/502/aph502/code/conda/envs/jupyter-lab/jupyterhub_config.py --port=\$PORT 
+nohup jupyterhub -f /home/502/aph502/code/conda/envs/jupyter-lab/jupyterhub_config.py --port=\$PORT &> jupyterhub.log &
+
 PID=\$!
 echo "\$PID" > "\$WORKDIR/jupyterhub.pid"
 
